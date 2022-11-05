@@ -75,13 +75,15 @@ async def qms(ctx, arg):
 
     qms_arr = []
     for item in qms_json:
-        qms_arr.append(item)
+        qms_arr.append(item.strip())
 
     if not qms_arr:
         await ctx.send('No active QMs found in ladder ' + arg)
         return
 
-    await ctx.send("```\n" + '\n'.join(qms_arr) + "\n```")
+    message = "Active QM matches for " + arg + ":"
+
+    await ctx.send(message + "\n```\n" + '\n'.join(qms_arr) + "\n```")
 
 
 @tasks.loop(minutes=5)
