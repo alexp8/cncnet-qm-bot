@@ -59,7 +59,32 @@ async def maps(ctx, arg):
     await ctx.send("```\n" + '\n'.join(maps_arr) + "\n```")
 
 
-@tasks.loop(seconds=60)
+@bot.command()
+async def qms(ctx, arg):
+    print("Fetching active matches for ladder: " + arg)
+
+    if not ladders:
+        await ctx.send('Error: No ladders available')
+        return
+
+    if arg not in ladders:
+        await ctx.send(arg + " is not a valid ladder from (" + ', '.join(ladders) + ")")
+        return
+
+    qms_json = api_client.fetch_qms(arg)
+
+    qms_arr = []
+    for item in qms_json:
+        qms_arr.append(item)
+
+    if not qms_arr:
+        await ctx.send('No active QMs found in ladder ' + arg)
+        return
+
+    await ctx.send("```\n" + '\n'.join(qms_arr) + "\n```")
+
+
+@tasks.loop(minutes=5)
 async def get_stats():
     print("getting stats")
 
@@ -97,6 +122,10 @@ class MyClient(APIClient):
 
     def fetch_maps(self, ladder):
         url = "https://ladder.cncnet.org/api/v1/qm/ladder/" + ladder + "/maps/public"
+        return self.get(url)
+
+    def fetch_qms(self, ladder):
+        url = "https://ladder.cncnet.org/api/v1/qm/ladder/" + ladder + "/current_matches"
         return self.get(url)
 
 
