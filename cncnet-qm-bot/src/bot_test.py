@@ -15,25 +15,28 @@ def main():
     ladders = []
     ladders_json = api_client.fetch_ladders()
     for item in ladders_json:
-        ladders.append(item['abbreviation'])
+        if item["private"] == 0:
+            ladders.append(item['abbreviation'])
 
-    maps_json = api_client.fetch_maps("yr")
+    maps_json = api_client.fetch_maps("blitz")
     maps = []
     for item in maps_json:
         maps.append(item['description'])
 
-    if 'test' not in ladders:
-        print('test is not a valid ladder from (' + ', '.join(ladders) + ")")
+    print("```\n" + '\n'.join(maps) + "\n```")
 
 
 class MyClient(APIClient):
+    global host
+    host = "https://ladder.cncnet.org"
+    # host = "http://localhost:8000"
 
     def fetch_ladders(self):
-        url = "http://localhost:8000/api/v1/ladder"
+        url = host + "/api/v1/ladder"
         return self.get(url)
 
     def fetch_maps(self, ladder):
-        url = "http://localhost:8000/api/v1/qm/ladder/" + ladder + "/maps/public"
+        url = host + "/api/v1/qm/ladder/" + ladder + "/maps/public"
         return self.get(url)
 
 

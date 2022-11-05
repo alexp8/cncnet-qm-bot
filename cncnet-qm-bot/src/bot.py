@@ -29,7 +29,8 @@ async def on_ready():
     ladders = []
     ladders_json = api_client.fetch_ladders()
     for item in ladders_json:
-        ladders.append(item['abbreviation'])
+        if item["private"] == 0:
+            ladders.append(item['abbreviation'])
     print("Ladders found: (" + ', '.join(ladders) + ")")
 
 
@@ -55,7 +56,7 @@ async def maps(ctx, arg):
         await ctx.send('Error: No maps found in ladder ' + arg)
         return
 
-    await ctx.send("```" + '\n'.join(maps_arr) + "```")
+    await ctx.send("```\n" + '\n'.join(maps_arr) + "\n```")
 
 
 @tasks.loop(seconds=60)
