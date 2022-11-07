@@ -3,6 +3,7 @@ import os
 
 import discord
 from apiclient import APIClient, JsonResponseHandler
+from apiclient.exceptions import ServerError
 from discord.ext import tasks
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -88,13 +89,17 @@ async def qms(ctx, arg):
 
 @tasks.loop(minutes=5)
 async def get_stats():
-    print("getting stats")
+    print("getting stats and updating discord channel names")
 
-    active_players_yr = api_client.fetch_stats("yr")
-    active_players_ra2 = api_client.fetch_stats("ra2")
+    try:
+        active_players_yr = api_client.fetch_stats("yr")
+        active_players_ra2 = api_client.fetch_stats("ra2")
 
-    channel_name_ra2 = "ra2-active-players"
-    channel_name_yr = "yr-active-players"
+        channel_name_ra2 = "ra2-active-players"
+        channel_name_yr = "yr-active-players"
+    except ServerError:
+        print("An error occurred when fetching qm stats: " + ServerError.message)
+        return
 
     new_name_ra2 = channel_name_ra2 + "-" + str(active_players_ra2)
     new_name_yr = channel_name_yr + "-" + str(active_players_yr)
