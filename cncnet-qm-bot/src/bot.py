@@ -39,8 +39,10 @@ async def on_ready():
 async def maps(ctx, arg):
     print("Fetching maps for ladder: " + arg)
 
+    channel = discord.utils.get(ctx.guild.channels, name="qm-bot")
+
     if not is_in_bot_channel(ctx.channel, arg):
-        await ctx.send("Please use for " + discord.utils.get(ctx.guild.channels, name="qm-bot").toString()
+        await ctx.send("Please use for " + channel.mention
                        + " bot commands")
         return
 
@@ -66,16 +68,17 @@ async def maps(ctx, arg):
 
 
 @bot.command()
-async def qm(ctx, arg):
+async def qm(ctx, arg: str = "all"):
     await qms(ctx, arg)
 
 
 @bot.command()
-async def qms(ctx, arg):
+async def qms(ctx, arg: str = "all"):
     print("Fetching active matches for ladder: " + arg)
 
+    channel = discord.utils.get(ctx.guild.channels, name="qm-bot")
+
     if not is_in_bot_channel(ctx.channel, ctx.message):
-        channel = discord.utils.get(ctx.guild.channels, name="qm-bot")
         await ctx.send("Please use " + channel.mention + " for bot commands.")
         return
 
@@ -83,23 +86,40 @@ async def qms(ctx, arg):
         await ctx.send('Error: No ladders available')
         return
 
-    if arg not in ladders:
-        await ctx.send(arg + " is not a valid ladder from (" + ', '.join(ladders) + ")")
-        return
-
     qms_json = api_client.fetch_qms(arg)
 
-    qms_arr = []
-    for item in qms_json:
-        qms_arr.append(item.strip())
+    # Display active games in all ladders
+    if arg == "all":
+        whole_message = ""
+        for ladder_abbrev in qms_json:
+            qms_arr = []
+            for item in qms_json[ladder_abbrev]:
+                qms_arr.append(item.strip())
 
-    if not qms_arr:
-        await ctx.send('`No active QMs found in ' + arg + ' ladder.`')
-        return
+            if qms_arr:
+                message = "Active **" + ladder_abbrev.upper() + "** QMs:\n```\n" + '\n'.join(qms_arr) + "\n```\n"
+                whole_message += message
 
-    message = "Active QM matches for " + arg + ":"
+        if not whole_message:
+            whole_message = "```Zero active matches found.```"
 
-    await ctx.send(message + "\n```\n" + '\n'.join(qms_arr) + "\n```")
+        await ctx.send(whole_message)
+    else:
+        if arg not in ladders:
+            await ctx.send(arg + " is not a valid ladder from (" + ', '.join(ladders) + ")")
+            return
+
+        qms_arr = []
+        for item in qms_json:
+            qms_arr.append(item.strip())
+
+        if not qms_arr:
+            await ctx.send('`No active QMs found in ' + arg + ' ladder.`')
+            return
+
+        message = "Active QM matches for " + arg + ":"
+
+        await ctx.send(message + "\n```\n" + '\n'.join(qms_arr) + "\n```")
 
 
 def is_in_bot_channel(channel, message):
