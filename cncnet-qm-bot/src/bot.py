@@ -61,6 +61,11 @@ async def maps(ctx, arg):
 
 
 @bot.command()
+async def qm(ctx, arg):
+    await qms(ctx, arg)
+
+
+@bot.command()
 async def qms(ctx, arg):
     print("Fetching active matches for ladder: " + arg)
 
@@ -79,7 +84,7 @@ async def qms(ctx, arg):
         qms_arr.append(item.strip())
 
     if not qms_arr:
-        await ctx.send('No active QMs found in ladder ' + arg)
+        await ctx.send('`No active QMs found in ' + arg + ' ladder.`')
         return
 
     message = "Active QM matches for " + arg + ":"
