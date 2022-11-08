@@ -39,6 +39,11 @@ async def on_ready():
 async def maps(ctx, arg):
     print("Fetching maps for ladder: " + arg)
 
+    if not is_in_bot_channel(ctx.channel, arg):
+        await ctx.send("Please use for " + discord.utils.get(ctx.guild.channels, name="qm-bot").toString()
+                       + " bot commands")
+        return
+
     if not ladders:
         await ctx.send('Error: No ladders available')
         return
@@ -69,6 +74,11 @@ async def qm(ctx, arg):
 async def qms(ctx, arg):
     print("Fetching active matches for ladder: " + arg)
 
+    if not is_in_bot_channel(ctx.channel, ctx.message):
+        channel = discord.utils.get(ctx.guild.channels, name="qm-bot")
+        await ctx.send("Please use " + channel.mention + " for bot commands.")
+        return
+
     if not ladders:
         await ctx.send('Error: No ladders available')
         return
@@ -92,22 +102,29 @@ async def qms(ctx, arg):
     await ctx.send(message + "\n```\n" + '\n'.join(qms_arr) + "\n```")
 
 
+def is_in_bot_channel(channel, message):
+    return channel.name == "qm-bot" or message.author.guild_permissions.administrator
+
+
 @tasks.loop(minutes=5)
 async def get_stats():
     print("getting stats and updating discord channel names")
 
+    channel_name_ra2 = "ra2-active-players"
+    channel_name_yr = "yr-active-players"
+    channel_name_ra = "ra-active-players"
+
     try:
         active_players_yr = api_client.fetch_stats("yr")
         active_players_ra2 = api_client.fetch_stats("ra2")
-
-        channel_name_ra2 = "ra2-active-players"
-        channel_name_yr = "yr-active-players"
+        active_players_ra = api_client.fetch_stats("ra")
     except ServerError:
         print("An error occurred when fetching qm stats: " + ServerError.message)
         return
 
     new_name_ra2 = channel_name_ra2 + "-" + str(active_players_ra2)
     new_name_yr = channel_name_yr + "-" + str(active_players_yr)
+    new_name_ra = channel_name_ra + "-" + str(active_players_ra)
 
     guilds = bot.guilds
     for server in guilds:
@@ -117,6 +134,8 @@ async def get_stats():
                 await channel.edit(name=new_name_ra2)
             elif channel.name.__contains__(channel_name_yr) and channel.name != new_name_yr:
                 await channel.edit(name=new_name_yr)
+            elif channel.name.__contains__(channel_name_ra) and channel.name != new_name_ra:
+                await channel.edit(name=new_name_ra)
 
 
 class MyClient(APIClient):
