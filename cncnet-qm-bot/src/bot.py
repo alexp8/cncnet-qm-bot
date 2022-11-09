@@ -1,9 +1,10 @@
 # bot.py
 import os
+from http.client import HTTPException
 
 import discord
 from apiclient import APIClient, JsonResponseHandler
-from apiclient.exceptions import ServerError
+from apiclient.exceptions import ServerError, UnexpectedError
 from discord.ext import tasks
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -71,7 +72,6 @@ async def maps(ctx, arg):
 
 @tasks.loop(minutes=1)
 async def qms():
-    print("Fetching active matches")
 
     if not ladders:
         print('Error: No ladders available')
@@ -84,25 +84,42 @@ async def qms():
         if not channel:
             continue
 
-        ladder_abbrev = "all"
+        ladder_abbrev_arr = []
         if server.id == 188156159620939776:  # CnCNet discord
-            ladder_abbrev = "ra"
+            ladder_abbrev_arr = ["ra"]
+        elif server.id == 252268956033875970:  # YR discord
+            ladder_abbrev_arr = ["ra2", "yr", "blitz"]
 
-        qms_json = api_client.fetch_qms(ladder_abbrev)
-
-        # Display active games in all ladders
         whole_message = ""
-        for ladder_abbrev in qms_json:
-            qms_arr = []
-            for item in qms_json[ladder_abbrev]:
-                qms_arr.append(item.strip())
 
-            if qms_arr:
-                message = "Active **" + ladder_abbrev.upper() + "** QMs:\n```\n" + '\n'.join(qms_arr) + "\n```\n"
-                whole_message += message
+        # Loop through each ladder and get the results
+        for ladder_abbrev in ladder_abbrev_arr:
+            try:
+                qms_json = api_client.fetch_qms(ladder_abbrev)
+            except UnexpectedError as ue:
+                print(ue.message)
+                return
+            except HTTPException as he:
+                print(he)
+                return
+
+            # Display active games in all ladders
+            for ladder_abbrev_i in qms_json:
+                qms_arr = []
+                for item in qms_json[ladder_abbrev_i]:
+                    qms_arr.append(item.strip())
+
+                if qms_arr:
+                    message = "Active **" + ladder_abbrev_i.upper() + "** QMs:\n```\n" + '\n'.join(qms_arr) + "\n```\n"
+                    whole_message += message
 
         if whole_message:
-            await channel.send(whole_message, delete_after=59)
+            try:
+                await channel.send(whole_message, delete_after=58)
+            except HTTPException as he:
+                print("Failed to send message: " + whole_message)
+                print(he)
+                return
 
 
 def is_in_bot_channel(channel, message):
@@ -111,8 +128,6 @@ def is_in_bot_channel(channel, message):
 
 @tasks.loop(minutes=5)
 async def get_stats():
-    print("getting stats and updating discord channel names")
-
     channel_name_ra2 = "ra2-active-players"
     channel_name_yr = "yr-active-players"
     channel_name_ra = "ra-active-players"
