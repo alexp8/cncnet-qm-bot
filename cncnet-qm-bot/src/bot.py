@@ -44,7 +44,7 @@ async def maps(ctx, arg):
 
     channel = discord.utils.get(ctx.guild.channels, name="qm-bot")
 
-    if not is_in_bot_channel(ctx.channel, arg):
+    if not is_in_bot_channel(ctx):
         await ctx.send("Please use for " + channel.mention
                        + " bot commands")
         return
@@ -67,7 +67,8 @@ async def maps(ctx, arg):
         await ctx.send('Error: No maps found in ladder ' + arg)
         return
 
-    await ctx.send("```\n" + '\n'.join(maps_arr) + "\n```")
+    message = "**" + arg + "** maps:\n" + "```\n" + '\n'.join(maps_arr) + "\n```"
+    await ctx.send(message)
 
 
 @tasks.loop(minutes=1)
@@ -122,8 +123,8 @@ async def qms():
                 return
 
 
-def is_in_bot_channel(channel, message):
-    return channel.name == "qm-bot" or message.author.guild_permissions.administrator
+def is_in_bot_channel(ctx):
+    return ctx.channel.name == "qm-bot" or ctx.message.author.guild_permissions.administrator
 
 
 @tasks.loop(minutes=5)
