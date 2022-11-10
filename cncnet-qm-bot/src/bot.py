@@ -42,13 +42,6 @@ async def on_ready():
 async def maps(ctx, arg):
     print("Fetching maps for ladder: " + arg)
 
-    channel = discord.utils.get(ctx.guild.channels, name="qm-bot")
-
-    if not is_in_bot_channel(ctx):
-        await ctx.send("Please use for " + channel.mention
-                       + " bot commands")
-        return
-
     if not ladders:
         await ctx.send('Error: No ladders available')
         return
