@@ -81,7 +81,9 @@ async def qms():
         if server.id == 188156159620939776:  # CnCNet discord
             ladder_abbrev_arr = ["ra"]
         elif server.id == 252268956033875970:  # YR discord
-            ladder_abbrev_arr = ["ra2", "yr", "blitz"]
+            ladder_abbrev_arr = ["ra2", "yr"]
+        elif server.id == 818265922615377971:  # RA2CashGames discord
+            ladder_abbrev_arr = ["blitz"]
 
         whole_message = ""
 
@@ -102,9 +104,26 @@ async def qms():
                 for item in qms_json[ladder_abbrev_i]:
                     qms_arr.append(item.strip())
 
+                # Get players in queue
+                try:
+                    in_queue_json = api_client.fetch_stats(ladder_abbrev_i)
+                except UnexpectedError as ue:
+                    print(ue.message)
+                    return
+                except HTTPException as he:
+                    print(he)
+                    return
+
+                in_queue = in_queue_json['queuedPlayers']
+                message = "**" + ladder_abbrev_i.upper() + "** QMs: " + str(in_queue) + " player(s) in queue"
+
                 if qms_arr:
-                    message = "Active **" + ladder_abbrev_i.upper() + "** QMs:\n```\n" + '\n'.join(qms_arr) + "\n```\n"
-                    whole_message += message
+                    message += ", " + str(len(qms_arr)) + " Active Matches:\n```\n- "\
+                               + '\n- '.join(qms_arr) + "\n```\n"
+                else:
+                    message += ". 0 Active matches."
+
+                whole_message += message
 
         if whole_message:
             try:
@@ -123,10 +142,7 @@ class MyClient(APIClient):
 
     def fetch_stats(self, ladder):
         url = "https://ladder.cncnet.org/api/v1/qm/ladder/" + ladder + "/stats"
-        json = self.get(url)
-        queued_players = json['queuedPlayers']
-        active_matches = json['activeMatches']
-        return queued_players + active_matches
+        return self.get(url)
 
     def fetch_ladders(self):
         url = "https://ladder.cncnet.org/api/v1/ladder"
