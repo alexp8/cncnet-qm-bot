@@ -4,7 +4,7 @@ from http.client import HTTPException
 
 import discord
 from apiclient import APIClient, JsonResponseHandler
-from apiclient.exceptions import ServerError, UnexpectedError
+from apiclient.exceptions import UnexpectedError
 from discord.ext import tasks
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -34,7 +34,6 @@ async def on_ready():
             ladders.append(item['abbreviation'])
     print("Ladders found: (" + ', '.join(ladders) + ")")
 
-    get_stats.start()
     qms.start()
 
 
@@ -118,36 +117,6 @@ async def qms():
 
 def is_in_bot_channel(ctx):
     return ctx.channel.name == "qm-bot" or ctx.message.author.guild_permissions.administrator
-
-
-@tasks.loop(minutes=5)
-async def get_stats():
-    channel_name_ra2 = "ra2-active-players"
-    channel_name_yr = "yr-active-players"
-    channel_name_ra = "ra-active-players"
-
-    try:
-        active_players_yr = api_client.fetch_stats("yr")
-        active_players_ra2 = api_client.fetch_stats("ra2")
-        active_players_ra = api_client.fetch_stats("ra")
-    except ServerError:
-        print("An error occurred when fetching qm stats: " + ServerError.message)
-        return
-
-    new_name_ra2 = channel_name_ra2 + "-" + str(active_players_ra2)
-    new_name_yr = channel_name_yr + "-" + str(active_players_yr)
-    new_name_ra = channel_name_ra + "-" + str(active_players_ra)
-
-    guilds = bot.guilds
-    for server in guilds:
-        channels = server.channels
-        for channel in channels:
-            if channel.name.__contains__(channel_name_ra2) and channel.name != new_name_ra2:
-                await channel.edit(name=new_name_ra2)
-            elif channel.name.__contains__(channel_name_yr) and channel.name != new_name_yr:
-                await channel.edit(name=new_name_yr)
-            elif channel.name.__contains__(channel_name_ra) and channel.name != new_name_ra:
-                await channel.edit(name=new_name_ra)
 
 
 class MyClient(APIClient):
