@@ -5,6 +5,7 @@ from http.client import HTTPException
 import discord
 from apiclient import APIClient, JsonResponseHandler
 from apiclient.exceptions import UnexpectedError
+from discord import Forbidden
 from discord.ext import tasks
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -131,6 +132,10 @@ async def qms():
             except HTTPException as he:
                 print("Failed to send message: " + whole_message)
                 print(he)
+                return
+            except Forbidden as f:
+                print("Failed to send message due to forbidden error: " + whole_message)
+                print(f)
                 return
 
 
