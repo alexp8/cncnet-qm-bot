@@ -116,13 +116,13 @@ async def qms():
                     return
 
                 in_queue = in_queue_json['queuedPlayers']
-                message = "**" + ladder_abbrev_i.upper() + "** QMs: " + str(in_queue) + " player(s) in queue"
+                message = "**" + ladder_abbrev_i.upper() + "** QMs: `" + str(in_queue) + " player(s) in queue`"
 
                 if qms_arr:
-                    message += ", " + str(len(qms_arr)) + " Active Matches:\n```\n- "\
+                    message += ", `" + str(len(qms_arr)) + " Active Matches`:\n```\n- "\
                                + '\n- '.join(qms_arr) + "\n```\n"
                 else:
-                    message += ". 0 Active matches."
+                    message += ". `0 Active matches.`\n"
 
                 whole_message += message
 
