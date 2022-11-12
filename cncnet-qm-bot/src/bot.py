@@ -4,7 +4,7 @@ from http.client import HTTPException
 
 import discord
 from apiclient import APIClient, JsonResponseHandler
-from apiclient.exceptions import UnexpectedError
+from apiclient.exceptions import UnexpectedError, ServerError
 from discord import Forbidden
 from discord.ext import tasks
 from dotenv import load_dotenv
@@ -90,13 +90,9 @@ async def qms():
 
         # Loop through each ladder and get the results
         for ladder_abbrev in ladder_abbrev_arr:
-            try:
-                qms_json = api_client.fetch_qms(ladder_abbrev)
-            except UnexpectedError as ue:
-                print(ue.message)
-                return
-            except HTTPException as he:
-                print(he)
+
+            qms_json = api_client.fetch_qms(ladder_abbrev)
+            if not qms_json:
                 return
 
             # Display active games in all ladders
@@ -106,13 +102,8 @@ async def qms():
                     qms_arr.append(item.strip())
 
                 # Get players in queue
-                try:
-                    in_queue_json = api_client.fetch_stats(ladder_abbrev_i)
-                except UnexpectedError as ue:
-                    print(ue.message)
-                    return
-                except HTTPException as he:
-                    print(he)
+                in_queue_json = api_client.fetch_stats(ladder_abbrev_i)
+                if not in_queue_json:
                     return
 
                 in_queue = in_queue_json['queuedPlayers']
@@ -147,19 +138,32 @@ class MyClient(APIClient):
 
     def fetch_stats(self, ladder):
         url = "https://ladder.cncnet.org/api/v1/qm/ladder/" + ladder + "/stats"
-        return self.get(url)
+        return self.get_call(url)
 
     def fetch_ladders(self):
         url = "https://ladder.cncnet.org/api/v1/ladder"
-        return self.get(url)
+        return self.get_call(url)
 
     def fetch_maps(self, ladder):
         url = "https://ladder.cncnet.org/api/v1/qm/ladder/" + ladder + "/maps/public"
-        return self.get(url)
+        return self.get_call(url)
 
     def fetch_qms(self, ladder):
         url = "https://ladder.cncnet.org/api/v1/qm/ladder/" + ladder + "/current_matches"
-        return self.get(url)
+        return self.get_call(url)
+
+    def get_call(self, url):
+        try:
+            return self.get(url)
+        except UnexpectedError as ue:
+            print(ue.message)
+            return None
+        except HTTPException as he:
+            print(he)
+            return None
+        except ServerError as se:
+            print(se)
+            return None
 
 
 bot.run(TOKEN)
