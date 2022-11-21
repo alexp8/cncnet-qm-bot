@@ -66,7 +66,6 @@ async def maps(ctx, arg):
 
 @tasks.loop(minutes=1)
 async def qms():
-
     if not ladders:
         print('Error: No ladders available')
         return
@@ -107,19 +106,21 @@ async def qms():
                     return
 
                 in_queue = in_queue_json['queuedPlayers']
-                message = "**" + ladder_abbrev_i.upper() + "** QMs: `" + str(in_queue) + " player(s) in queue`"
+                total_in_qm = in_queue + (len(qms_arr) * 2)
+                message = str(total_in_qm) + " player(s) in **" + ladder_abbrev_i.upper() + "** QM:\n- " \
+                    + str(in_queue) + " player(s) in queue"
 
                 if qms_arr:
-                    message += ", `" + str(len(qms_arr)) + " Active Matches`:\n```\n- "\
+                    message += "\n- " + str(len(qms_arr)) + " active matches:\n```\n- " \
                                + '\n- '.join(qms_arr) + "\n```\n"
                 else:
-                    message += ". `0 Active matches.`\n"
+                    message += "\n- 0 active matches.\n\n"
 
                 whole_message += message
 
         if whole_message:
             try:
-                await channel.send(whole_message, delete_after=58)
+                await channel.send(whole_message, delete_after=56)
             except HTTPException as he:
                 print("Failed to send message: " + whole_message)
                 print(he)
@@ -128,6 +129,30 @@ async def qms():
                 print("Failed to send message due to forbidden error: " + whole_message)
                 print(f)
                 return
+
+
+@bot.command()
+async def purge_bot_channel(ctx):
+    guilds = bot.guilds
+
+    if not ctx.message.author.guild_permissions.administrator:
+        print(ctx.message.author + " is not admin, exiting command.")
+        return
+
+    for server in guilds:
+
+        if server.id != 252268956033875970:
+            continue
+
+        channel = discord.utils.get(server.channels, name="qm-bot")
+
+        if not channel:
+            continue
+
+        print('purging messages in server: ' + server.name + ', in channel: ' + channel.name)
+
+        deleted = await channel.purge()
+        print(f'Deleted {len(deleted)} message(s)')
 
 
 def is_in_bot_channel(ctx):
