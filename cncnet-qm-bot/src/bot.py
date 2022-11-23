@@ -38,7 +38,7 @@ async def on_ready():
     ladders_string = ", ".join(ladders)
     print(f"Ladders found: ({ladders_string})")
 
-    # fetch_active_qms.start()
+    fetch_active_qms.start()
 
 
 @bot.command()
@@ -69,7 +69,7 @@ async def maps(ctx, arg):
     await ctx.send(message)
 
 
-@tasks.loop(minutes=10)
+@tasks.loop(minutes=1)
 async def fetch_active_qms():
     if not ladders:
         print("Error: No ladders available")
