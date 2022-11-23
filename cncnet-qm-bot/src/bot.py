@@ -39,6 +39,7 @@ async def on_ready():
     print(f"Ladders found: ({ladders_string})")
 
     fetch_active_qms.start()
+    update_qm_roles.start()
 
 
 @bot.command()
@@ -164,7 +165,7 @@ def is_in_bot_channel(ctx):
     return ctx.channel.name == "qm-bot" or ctx.message.author.guild_permissions.administrator
 
 
-@tasks.loop(hours=12)
+@tasks.loop(hours=8)
 async def update_qm_roles():
     await remove_qm_roles()  # remove discord members QM roles
 
@@ -185,9 +186,13 @@ async def remove_qm_roles():
         for member in server.members:
             for role in member.roles:
 
-                if role.name.lower() == 'RA2 Rank 1'.lower():
+                if role.name.lower() == 'RA2 QM Rank 1'.lower():
                     await member.remove_roles(role)
-                elif role.name.lower() == 'YR Rank 1'.lower():
+                elif role.name.lower() == 'YR QM Rank 1'.lower():
+                    await member.remove_roles(role)
+                elif role.name.lower() == 'RA2 QM Top 3'.lower():
+                    await member.remove_roles(role)
+                elif role.name.lower() == 'YR QM Top 3'.lower():
                     await member.remove_roles(role)
                 elif role.name.lower() == 'RA2 QM TOP 5'.lower():
                     await member.remove_roles(role)
@@ -252,19 +257,23 @@ async def assign_qm_role():
                     role_name = "YR QM Rank 1"
                 elif ladder == "RA2" and rank == 1:
                     role_name = "RA2 QM Rank 1"
-                if ladder == "YR" and rank <= 5:
+                elif ladder == "YR" and rank <= 3:
+                    role_name = "YR QM Top 3"
+                elif ladder == "RA2" and rank <= 3:
+                    role_name = "RA2 QM Top 3"
+                elif ladder == "YR" and rank <= 5:
                     role_name = "YR QM Top 5"
                 elif ladder == "RA2" and rank <= 5:
                     role_name = "RA2 QM Top 5"
-                if ladder == "YR" and rank <= 10:
+                elif ladder == "YR" and rank <= 10:
                     role_name = "YR QM Top 10"
                 elif ladder == "RA2" and rank <= 10:
                     role_name = "RA2 QM Top 10"
-                if ladder == "YR" and rank <= 25:
+                elif ladder == "YR" and rank <= 25:
                     role_name = "YR QM Top 25"
                 elif ladder == "RA2" and rank <= 25:
                     role_name = "RA2 QM Top 25"
-                if ladder == "YR" and rank <= 50:
+                elif ladder == "YR" and rank <= 50:
                     role_name = "YR QM Top 50"
                 elif ladder == "RA2" and rank <= 50:
                     role_name = "RA2 QM Top 50"
