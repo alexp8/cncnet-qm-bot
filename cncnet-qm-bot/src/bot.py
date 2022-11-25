@@ -10,6 +10,7 @@ from discord.utils import get
 from dotenv import load_dotenv
 from discord.ext import commands
 from CnCNetApiSvc import CnCNetApiSvc
+from io import StringIO
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -236,6 +237,7 @@ async def assign_qm_role():
             print(f"Assigning roles for {ladder} ladder")
 
             rank = 0
+            text = ""
             for item in rankings_json[ladder]:
                 rank = rank + 1
 
@@ -243,13 +245,17 @@ async def assign_qm_role():
                 player_name = item["player_name"]
 
                 if not discord_name:
-                    print(f"No discord name found with for player {player_name}")
+                    message = f"No discord name found with for player {player_name}"
+                    print(message)
+                    text += message + "\n"
                     continue
 
                 member = server.get_member_named(discord_name)  # find the discord user by the name provided
 
                 if not member:
-                    print(f"No user found with name {discord_name} for player {player_name} in server {server}")
+                    message = f"No user found with name {discord_name} for player {player_name} in server {server}"
+                    print(message)
+                    text += message + "\n"
                     continue
 
                 role_name = ""
@@ -279,17 +285,28 @@ async def assign_qm_role():
                     role_name = "RA2 QM Top 50"
 
                 if not role_name:
-                    print(f"No valid role found for ladder '{ladder}' rank '{rank}'")
+                    message = f"No valid role found for ladder '{ladder}' rank '{rank}'"
+                    print(message)
+                    text += message + "\n"
                     continue
 
                 role = get(server.roles, name=role_name)
                 if not role:
-                    print(f"No valid role found for role_name '{role_name}'")
+                    message = f"No valid role found for role_name '{role_name}'"
+                    print(message)
+                    text += message + "\n"
                     continue
 
-                print(f"Assigning role '{role}' to user '{member}'")
+                message = f"Assigning role '{role}' to user '{member}' for player {player_name} whose rank is {rank}"
+                print(message)
+                text += message + "\n"
 
                 await member.add_roles(role)  # Add the Discord QM role
+
+            channel = discord.utils.get(server.channels, name="admin-test")
+            buffer = StringIO(text)
+            f = discord.File(buffer, filename=f"{ladder}_update_qm_roles_log.txt")
+            await channel.send(file=f)
 
 
 bot.run(TOKEN)
