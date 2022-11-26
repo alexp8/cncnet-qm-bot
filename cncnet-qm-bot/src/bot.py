@@ -44,16 +44,21 @@ async def on_ready():
 
 
 @bot.command()
-async def maps(ctx, arg):
-    print("Fetching maps for ladder: " + arg)
+async def maps(ctx, arg=""):
+    print("Fetching maps for ladder '{arg}'")
 
     if not ladders:
         await ctx.send("Error: No ladders available")
         return
 
+    if not arg:
+        ladders_string = ', '.join(ladders)
+        await ctx.send(f"No ladder provided, select a valid ladder from `[{ladders_string}]`, like `!maps ra2`")
+        return
+
     if arg not in ladders:
         ladders_string = ', '.join(ladders)
-        await ctx.send(f"{arg} is not a valid ladder from '{ladders_string}'")
+        await ctx.send(f"{arg} is not a valid ladder from `{ladders_string}`")
         return
 
     maps_json = cnc_api_client.fetch_maps(arg)
@@ -245,7 +250,7 @@ async def assign_qm_role():
                 player_name = item["player_name"]
 
                 if not discord_name:
-                    message = f"No discord name found with for player {player_name}"
+                    message = f"No discord name found for player '{player_name}', rank {rank}"
                     print(message)
                     text += message + "\n"
                     continue
@@ -253,7 +258,8 @@ async def assign_qm_role():
                 member = server.get_member_named(discord_name)  # find the discord user by the name provided
 
                 if not member:
-                    message = f"No user found with name {discord_name} for player {player_name} in server {server}"
+                    message = f"No user found with name '{discord_name}' for player '{player_name}', rank {rank}, in " \
+                              f"server {server} "
                     print(message)
                     text += message + "\n"
                     continue
@@ -285,7 +291,7 @@ async def assign_qm_role():
                     role_name = "RA2 QM Top 50"
 
                 if not role_name:
-                    message = f"No valid role found for ladder '{ladder}' rank '{rank}'"
+                    message = f"No valid role found for ladder '{ladder}' rank {rank}"
                     print(message)
                     text += message + "\n"
                     continue
@@ -297,7 +303,7 @@ async def assign_qm_role():
                     text += message + "\n"
                     continue
 
-                message = f"Assigning role '{role}' to user '{member}' for player {player_name} whose rank is {rank}"
+                message = f"Assigning role '{role}' to user '{member}', (player '{player_name}', rank: {rank})"
                 print(message)
                 text += message + "\n"
 
