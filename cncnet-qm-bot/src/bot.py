@@ -4,7 +4,7 @@ from http.client import HTTPException
 
 import discord
 from apiclient import JsonResponseHandler
-from discord import Forbidden
+from discord import Forbidden, DiscordServerError
 from discord.ext import tasks
 from discord.utils import get
 from dotenv import load_dotenv
@@ -13,11 +13,17 @@ from CnCNetApiSvc import CnCNetApiSvc
 from io import StringIO
 
 load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
+TOKEN = os.getenv('DISCORD_CLIENT_SECRET')
 intents = discord.Intents(messages=True, guilds=True, message_content=True, guild_messages=True, members=True)
 bot = commands.Bot(command_prefix='!', intents=intents)
 global cnc_api_client
 global ladders
+global burg
+
+BURG_ID = 123726717067067393  # Burg#8410
+YR_DISCORD_ID = 252268956033875970  # YR Discord Server ID
+YR_BOT_CHANNEL_LOGS_ID = 852300478691672146  # cncnet-bot-logs
+QM_BOT_CHANNEL_NAME = "qm-bot"
 
 
 @bot.event
@@ -39,8 +45,12 @@ async def on_ready():
     ladders_string = ", ".join(ladders)
     print(f"Ladders found: ({ladders_string})")
 
+    await purge_bot_channel()  # Delete messages in bot-channel
     fetch_active_qms.start()
     update_qm_roles.start()
+
+    global burg
+    burg = bot.get_user(123726717067067393)
 
 
 @bot.command()
@@ -84,7 +94,7 @@ async def fetch_active_qms():
 
     guilds = bot.guilds
     for server in guilds:
-        channel = discord.utils.get(server.channels, name="qm-bot")
+        channel = discord.utils.get(server.channels, name=QM_BOT_CHANNEL_NAME)
 
         if not channel:
             continue
@@ -134,41 +144,46 @@ async def fetch_active_qms():
             try:
                 await channel.send(whole_message, delete_after=56)
             except HTTPException as he:
-                print(f"Failed to send message: {whole_message}")
-                print(he)
+                msg = f"Failed to send message: '{whole_message}', exception '{he}'"
+                print(msg)
+                await burg.send(msg)
                 return
             except Forbidden as f:
-                print(f"Failed to send message due to forbidden error: {whole_message}")
-                print(f)
+                msg = f"Failed to send message due to forbidden error: '{whole_message}', exception '{f}'"
+                print(msg)
+                await burg.send(msg)
+                return
+            except DiscordServerError as de:
+                msg = f"Failed to send message due to DiscordServerError:  '{whole_message}', exception '{de}'"
+                print(msg)
+                await burg.send(msg)
                 return
 
 
 @bot.command()
-async def purge_bot_channel(ctx):
-    guilds = bot.guilds
-
+async def purge_bot_channel_command(ctx):
     if not ctx.message.author.guild_permissions.administrator:
         print(f"{ctx.message.author} is not admin, exiting command.")
         return
+    await purge_bot_channel()
+
+
+async def purge_bot_channel():
+    guilds = bot.guilds
 
     for server in guilds:
 
-        if server.id != 252268956033875970:  # YR discord
-            continue
-
-        channel = discord.utils.get(server.channels, name="qm-bot")
+        channel = discord.utils.get(server.channels, name=QM_BOT_CHANNEL_NAME)
 
         if not channel:
             continue
 
-        print(f'Deleting messages in server: {server.name} , in channel: {channel.name}')
-
         deleted = await channel.purge()
-        print(f'Deleted {len(deleted)} message(s)')
+        print(f"Deleted {len(deleted)} message(s) from: server '{server.name}', channel: '{channel.name}'")
 
 
 def is_in_bot_channel(ctx):
-    return ctx.channel.name == "qm-bot" or ctx.message.author.guild_permissions.administrator
+    return ctx.channel.name == QM_BOT_CHANNEL_NAME or ctx.message.author.guild_permissions.administrator
 
 
 @tasks.loop(hours=8)
@@ -177,16 +192,14 @@ async def update_qm_roles():
 
     await assign_qm_role()  # assign discord members QM roles
 
-    print("Completed updating Discord QM roles")
-
 
 async def remove_qm_roles():
-    print('Removing QM roles')
+    print("Removing QM roles")
     guilds = bot.guilds
 
     for server in guilds:
 
-        if server.id != 252268956033875970:  # YR discord
+        if server.id != YR_DISCORD_ID:  # YR discord
             continue
 
         for member in server.members:
@@ -221,15 +234,16 @@ async def remove_qm_roles():
                 elif role.name.lower() == 'YR QM TOP 50'.lower():
                     await member.remove_roles(role)
 
+    print("Finished removing QM roles")
+
 
 async def assign_qm_role():
     print("Assigning QM Roles")
-
     guilds = bot.guilds
 
     for server in guilds:
 
-        if server.id != 252268956033875970:  # YR discord
+        if server.id != YR_DISCORD_ID:  # YR discord
             continue
 
         # Fetch QM player ranks
@@ -239,8 +253,6 @@ async def assign_qm_role():
 
         ladder_abbrev_arr = ["RA2", "YR"]
         for ladder in ladder_abbrev_arr:
-            print(f"Assigning roles for {ladder} ladder")
-
             rank = 0
             text = ""
             for item in rankings_json[ladder]:
@@ -251,7 +263,6 @@ async def assign_qm_role():
 
                 if not discord_name:
                     message = f"No discord name found for player '{player_name}', rank {rank}"
-                    print(message)
                     text += message + "\n"
                     continue
 
@@ -260,7 +271,7 @@ async def assign_qm_role():
                 if not member:
                     message = f"No user found with name '{discord_name}' for player '{player_name}', rank {rank}, in " \
                               f"server {server} "
-                    print(message)
+
                     text += message + "\n"
                     continue
 
@@ -292,27 +303,26 @@ async def assign_qm_role():
 
                 if not role_name:
                     message = f"No valid role found for ladder '{ladder}' rank {rank}"
-                    print(message)
+
                     text += message + "\n"
                     continue
 
                 role = get(server.roles, name=role_name)
                 if not role:
                     message = f"No valid role found for role_name '{role_name}'"
-                    print(message)
+
                     text += message + "\n"
                     continue
 
                 message = f"Assigning role '{role}' to user '{member}', (player '{player_name}', rank: {rank})"
-                print(message)
                 text += message + "\n"
 
                 await member.add_roles(role)  # Add the Discord QM role
 
-            channel = discord.utils.get(server.channels, name="admin-test")
+            channel = bot.get_channel(YR_BOT_CHANNEL_LOGS_ID)
             buffer = StringIO(text)
             f = discord.File(buffer, filename=f"{ladder}_update_qm_roles_log.txt")
             await channel.send(file=f)
-
+    print("Completed assigning QM Roles")
 
 bot.run(TOKEN)
