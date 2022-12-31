@@ -20,10 +20,15 @@ global cnc_api_client
 global ladders
 global burg
 
-BURG_ID = 123726717067067393  # Burg#8410
-YR_DISCORD_ID = 252268956033875970  # YR Discord Server ID
-YR_BOT_CHANNEL_LOGS_ID = 852300478691672146  # cncnet-bot-logs
 QM_BOT_CHANNEL_NAME = "qm-bot"
+BURG_ID = 123726717067067393  # Burg#8410 - User ID
+YR_DISCORD_ID = 252268956033875970  # Yuri's Revenge - Server ID
+YR_BOT_CHANNEL_LOGS_ID = 852300478691672146  # Yuri's Revenge.cncnet-bot-logs
+
+# Discord Channel IDs
+CNCNET_DISCORD_QM_BOT_ID = 1039608594057924609  # CnCNet.qm-bot
+BLITZ_DISCORD_QM_BOT_ID = 1040396984164548729  # RA2 World Series.qm-bot
+YR_DISCORD_QM_BOT_ID = 1039026321826787338  # Yuri's Revenge.qm-bot
 
 
 @bot.event
@@ -47,7 +52,9 @@ async def on_ready():
 
     await purge_bot_channel()  # Delete messages in bot-channel
     fetch_active_qms.start()
+    fetch_errored_games.start()
     update_qm_roles.start()
+    update_qm_bot_channel_name.start()
 
     global burg
     burg = bot.get_user(123726717067067393)
@@ -86,6 +93,49 @@ async def maps(ctx, arg=""):
     await ctx.send(message)
 
 
+@tasks.loop(minutes=10)
+async def update_qm_bot_channel_name():
+    if not ladders:
+        print("Error: No ladders available")
+        return
+
+    guilds = bot.guilds
+    for server in guilds:
+        ladder_abbrev_arr = None
+        qm_bot_channel = None
+        if server.id == 188156159620939776:  # CnCNet discord
+            ladder_abbrev_arr = ["ra"]
+            qm_bot_channel = bot.get_channel(CNCNET_DISCORD_QM_BOT_ID)
+        elif server.id == 252268956033875970:  # YR discord
+            ladder_abbrev_arr = ["ra2", "yr"]
+            qm_bot_channel = bot.get_channel(YR_DISCORD_QM_BOT_ID)
+        elif server.id == 818265922615377971:  # RA2CashGames discord
+            ladder_abbrev_arr = ["blitz"]
+            qm_bot_channel = bot.get_channel(BLITZ_DISCORD_QM_BOT_ID)
+
+        if not ladder_abbrev_arr:
+            continue
+
+        if not qm_bot_channel:
+            print(f"No qm-bot channel found in server '{server.name}'")
+            await burg.send(f"No qm-bot channel found in server '{server.name}'")
+            continue
+
+        num_players = 0
+        new_channel_name = "qm-bot"
+        for ladder_abbrev in ladder_abbrev_arr:
+            stats_json = cnc_api_client.fetch_stats(ladder_abbrev)
+            if not stats_json:
+                return
+
+            queued_players = stats_json['queuedPlayers']
+            active_matches = stats_json['activeMatches']
+            num_players = num_players + queued_players + active_matches
+            new_channel_name = "qm-bot-" + str(num_players)
+
+        await qm_bot_channel.edit(name=new_channel_name)
+
+
 @tasks.loop(minutes=1)
 async def fetch_active_qms():
     if not ladders:
@@ -94,55 +144,58 @@ async def fetch_active_qms():
 
     guilds = bot.guilds
     for server in guilds:
-        channel = discord.utils.get(server.channels, name=QM_BOT_CHANNEL_NAME)
-
-        if not channel:
-            continue
 
         ladder_abbrev_arr = []
+        qm_bot_channel = None
         if server.id == 188156159620939776:  # CnCNet discord
             ladder_abbrev_arr = ["ra"]
+            qm_bot_channel = bot.get_channel(CNCNET_DISCORD_QM_BOT_ID)
         elif server.id == 252268956033875970:  # YR discord
             ladder_abbrev_arr = ["ra2", "yr"]
+            qm_bot_channel = bot.get_channel(YR_DISCORD_QM_BOT_ID)
         elif server.id == 818265922615377971:  # RA2CashGames discord
             ladder_abbrev_arr = ["blitz"]
+            qm_bot_channel = bot.get_channel(BLITZ_DISCORD_QM_BOT_ID)
+
+        if not qm_bot_channel:
+            continue
 
         whole_message = ""
 
         # Loop through each ladder and get the results
+        # Display active games in all ladders
         for ladder_abbrev in ladder_abbrev_arr:
 
-            qms_json = cnc_api_client.fetch_qms(ladder_abbrev)
-            if not qms_json:
+            current_matches_json = cnc_api_client.fetch_current_matches(ladder_abbrev)
+            if not current_matches_json:
+                print("Error fetching current matches.")
                 return
 
-            # Display active games in all ladders
-            for ladder_abbrev_i in qms_json:
-                qms_arr = []
-                for item in qms_json[ladder_abbrev_i]:
-                    qms_arr.append(item.strip())
+            qms_arr = []
+            for item in current_matches_json[ladder_abbrev]:
+                qms_arr.append(item.strip())
 
-                # Get players in queue
-                in_queue_json = cnc_api_client.fetch_stats(ladder_abbrev_i)
-                if not in_queue_json:
-                    return
+            # Get players in queue
+            stats_json = cnc_api_client.fetch_stats(ladder_abbrev)
+            if not stats_json:
+                return
 
-                in_queue = in_queue_json['queuedPlayers']
-                total_in_qm = in_queue + (len(qms_arr) * 2)
-                message = str(total_in_qm) + " player(s) in **" + ladder_abbrev_i.upper() + "** QM:\n- " \
-                          + str(in_queue) + " player(s) in queue"
+            in_queue = stats_json['queuedPlayers']
+            total_in_qm = in_queue + (len(qms_arr) * 2)
+            message = str(total_in_qm) + " player(s) in **" + ladder_abbrev.upper() + "** QM:\n- " \
+                      + str(in_queue) + " player(s) in queue"
 
-                if qms_arr:
-                    message += "\n- " + str(len(qms_arr)) + " active matches:\n```\n- " \
-                               + '\n- '.join(qms_arr) + "\n```\n"
-                else:
-                    message += "\n- 0 active matches.\n\n"
+            if qms_arr:
+                message += "\n- " + str(len(qms_arr)) + " active matches:\n```\n- " \
+                           + '\n- '.join(qms_arr) + "\n```\n"
+            else:
+                message += "\n- 0 active matches.\n\n"
 
-                whole_message += message
+            whole_message += message
 
         if whole_message:
             try:
-                await channel.send(whole_message, delete_after=56)
+                await qm_bot_channel.send(whole_message, delete_after=56)
             except HTTPException as he:
                 msg = f"Failed to send message: '{whole_message}', exception '{he}'"
                 print(msg)
@@ -172,18 +225,14 @@ async def purge_bot_channel():
     guilds = bot.guilds
 
     for server in guilds:
-
-        channel = discord.utils.get(server.channels, name=QM_BOT_CHANNEL_NAME)
-
-        if not channel:
-            continue
-
-        deleted = await channel.purge()
-        print(f"Deleted {len(deleted)} message(s) from: server '{server.name}', channel: '{channel.name}'")
+        for channel in server.channels:
+            if channel.name.startswith(QM_BOT_CHANNEL_NAME):
+                deleted = await channel.purge()
+                print(f"Deleted {len(deleted)} message(s) from: server '{server.name}', channel: '{channel.name}'")
 
 
 def is_in_bot_channel(ctx):
-    return ctx.channel.name == QM_BOT_CHANNEL_NAME or ctx.message.author.guild_permissions.administrator
+    return ctx.channel.name.startswith(QM_BOT_CHANNEL_NAME) or ctx.message.author.guild_permissions.administrator
 
 
 @tasks.loop(hours=8)
@@ -191,6 +240,30 @@ async def update_qm_roles():
     await remove_qm_roles()  # remove discord members QM roles
 
     await assign_qm_role()  # assign discord members QM roles
+
+
+@tasks.loop(hours=1)
+async def fetch_errored_games():
+    print("Fetching errored games")
+    guilds = bot.guilds
+
+    for server in guilds:
+        if server.id != YR_DISCORD_ID:  # YR discord
+            continue
+
+        arr = ["ra2", "yr"]
+
+        for ladder_abbreviation in arr:
+            data = cnc_api_client.fetch_errored_games(ladder_abbreviation)
+
+            url = data["url"]
+            count = data["count"]
+
+            qm_bot_channel = bot.get_channel(YR_BOT_CHANNEL_LOGS_ID)
+
+            if count > 0:
+                await qm_bot_channel.send(f"There are **{count} {ladder_abbreviation}** games that need to be washed."
+                                          f"\nOpen {url}")
 
 
 async def remove_qm_roles():
@@ -324,5 +397,6 @@ async def assign_qm_role():
             f = discord.File(buffer, filename=f"{ladder}_update_qm_roles_log.txt")
             await channel.send(file=f)
     print("Completed assigning QM Roles")
+
 
 bot.run(TOKEN)

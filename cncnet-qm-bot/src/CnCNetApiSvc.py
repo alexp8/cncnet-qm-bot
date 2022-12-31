@@ -1,9 +1,11 @@
 from apiclient import APIClient
-from apiclient.exceptions import UnexpectedError, ServerError
+from apiclient.exceptions import APIRequestError
 
 
 class CnCNetApiSvc(APIClient):
     host = "https://ladder.cncnet.org"
+
+    # APIClient.
 
     def fetch_stats(self, ladder):
         url = f"{self.host}/api/v1/qm/ladder/{ladder}/stats"
@@ -17,7 +19,7 @@ class CnCNetApiSvc(APIClient):
         url = f"{self.host}/api/v1/qm/ladder/{ladder}/maps/public"
         return self.get_call(url)
 
-    def fetch_qms(self, ladder):
+    def fetch_current_matches(self, ladder):
         url = f"{self.host}/api/v1/qm/ladder/{ladder}/current_matches"
         return self.get_call(url)
 
@@ -25,12 +27,14 @@ class CnCNetApiSvc(APIClient):
         url = f"{self.host}/api/v1/qm/ladder/rankings"
         return self.get_call(url)
 
+    def fetch_errored_games(self, ladder):
+        url = f"{self.host}/api/v1/qm/ladder/{ladder}/errored/games"
+        return self.get_call(url)
+
     def get_call(self, url):
         try:
             return self.get(url)
-        except UnexpectedError as ue:
-            print(ue.message)
+        except APIRequestError as e:
+            print(f"Status code: '{e.status_code}', message: '{e.message}', Info: '{e.info}', Cause: '{e.__cause__}'")
             return None
-        except ServerError as se:
-            print(se)
-            return None
+
