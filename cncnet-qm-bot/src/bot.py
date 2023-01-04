@@ -58,9 +58,9 @@ async def on_ready():
 
     await purge_bot_channel()  # Delete messages in bot-channel
     fetch_active_qms.start()
-    fetch_errored_games.start()
-    update_qm_bot_channel_name.start()
-    update_qm_roles.start()
+    # fetch_errored_games.start()
+    # update_qm_bot_channel_name.start()
+    # update_qm_roles.start()
 
     global burg
     burg = bot.get_user(123726717067067393)
@@ -115,7 +115,7 @@ async def update_qm_bot_channel_name():
         elif server.id == 252268956033875970:  # YR discord
             ladder_abbrev_arr = ["ra2", "yr"]
             qm_bot_channel = bot.get_channel(YR_DISCORD_QM_BOT_ID)
-        elif server.id == 818265922615377971:  # RA2CashGames discord
+        elif server.id == BLITZ_DISCORD_ID:  # RA2CashGames discord
             ladder_abbrev_arr = ["blitz"]
             qm_bot_channel = bot.get_channel(BLITZ_DISCORD_QM_BOT_ID)
 
@@ -159,64 +159,75 @@ async def fetch_active_qms():
         elif server.id == 252268956033875970:  # YR discord
             ladder_abbrev_arr = ["ra2", "yr"]
             qm_bot_channel = bot.get_channel(YR_DISCORD_QM_BOT_ID)
-        elif server.id == 818265922615377971:  # RA2CashGames discord
+        elif server.id == BLITZ_DISCORD_ID:  # RA2CashGames discord
             ladder_abbrev_arr = ["blitz"]
             qm_bot_channel = bot.get_channel(BLITZ_DISCORD_QM_BOT_ID)
 
         if not qm_bot_channel:
             continue
 
-        whole_message = ""
+
 
         # Loop through each ladder and get the results
         # Display active games in all ladders
         for ladder_abbrev in ladder_abbrev_arr:
-
             current_matches_json = cnc_api_client.fetch_current_matches(ladder_abbrev)
+
             if not current_matches_json:
-                print("Error fetching current matches.")
-                return
+                continue
 
-            qms_arr = []
-            for item in current_matches_json[ladder_abbrev]:
-                qms_arr.append(item.strip())
+            whole_message = ""
+            tier = 1
+            for division, games in current_matches_json[ladder_abbrev].items():
+                qms_arr = []
+                if division == "Contenders Players League" and server.id != BLITZ_DISCORD_ID:
+                    continue
 
-            # Get players in queue
-            stats_json = cnc_api_client.fetch_stats(ladder_abbrev)
-            if not stats_json:
-                return
+                if server.id == BLITZ_DISCORD_ID:  # Only blitz has divisions
+                    title = ladder_abbrev.upper() + " - " + division.upper()
+                else:
+                    title = ladder_abbrev.upper()
 
-            in_queue = stats_json['queuedPlayers']
-            total_in_qm = in_queue + (len(qms_arr) * 2)
-            message = str(total_in_qm) + " player(s) in **" + ladder_abbrev.upper() + "** QM:\n- " \
-                      + str(in_queue) + " player(s) in queue"
+                if games:
+                    qms_arr.append(games.strip())
 
-            if qms_arr:
-                message += "\n- " + str(len(qms_arr)) + " active matches:\n```\n- " \
-                           + '\n- '.join(qms_arr) + "\n```\n"
-            else:
-                message += "\n- 0 active matches.\n\n"
+                # Get players in queue
+                stats_json = cnc_api_client.fetch_stats(ladder_abbrev, tier)
+                if not stats_json:
+                    continue
+                tier += 1
 
-            whole_message += message
+                in_queue = stats_json['queuedPlayers']
+                total_in_qm = in_queue + (len(qms_arr) * 2)
+                message = str(total_in_qm) + " player(s) in **" + title \
+                          + "** QM:\n- " + str(in_queue) + " player(s) in queue"
 
-        if whole_message:
-            try:
-                await qm_bot_channel.send(whole_message, delete_after=56)
-            except HTTPException as he:
-                msg = f"Failed to send message: '{whole_message}', exception '{he}'"
-                print(msg)
-                await burg.send(msg)
-                return
-            except Forbidden as f:
-                msg = f"Failed to send message due to forbidden error: '{whole_message}', exception '{f}'"
-                print(msg)
-                await burg.send(msg)
-                return
-            except DiscordServerError as de:
-                msg = f"Failed to send message due to DiscordServerError:  '{whole_message}', exception '{de}'"
-                print(msg)
-                await burg.send(msg)
-                return
+                if qms_arr:
+                    message += "\n- " + str(len(qms_arr)) + " active matches:\n```\n- " \
+                               + '\n- '.join(qms_arr) + "\n```\n"
+                else:
+                    message += "\n- 0 active matches.\n\n"
+
+                whole_message += message
+
+            if whole_message:
+                try:
+                    await qm_bot_channel.send(whole_message, delete_after=56)
+                except HTTPException as he:
+                    msg = f"Failed to send message: '{whole_message}', exception '{he}'"
+                    print(msg)
+                    await burg.send(msg)
+                    return
+                except Forbidden as f:
+                    msg = f"Failed to send message due to forbidden error: '{whole_message}', exception '{f}'"
+                    print(msg)
+                    await burg.send(msg)
+                    return
+                except DiscordServerError as de:
+                    msg = f"Failed to send message due to DiscordServerError:  '{whole_message}', exception '{de}'"
+                    print(msg)
+                    await burg.send(msg)
+                    return
 
 
 @bot.command()
@@ -270,7 +281,7 @@ async def fetch_errored_games():
 
             if count > 0:
                 await channel.send(f"There are **{count} {ladder_abbreviation}** games that need to be washed."
-                                          f"\nOpen {url}")
+                                   f"\nOpen {url}")
 
 
 async def remove_qm_roles():
