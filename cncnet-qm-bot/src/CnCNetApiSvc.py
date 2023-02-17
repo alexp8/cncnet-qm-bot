@@ -5,9 +5,11 @@ from apiclient.exceptions import APIRequestError
 class CnCNetApiSvc(APIClient):
     host = "https://ladder.cncnet.org"
 
-    # APIClient.
+    def fetch_stats(self, ladder):
+        url = f"{self.host}/api/v1/qm/ladder/{ladder}/stats"
+        return self.get_call(url)
 
-    def fetch_stats(self, ladder, tier):
+    def fetch_stats_tier(self, ladder, tier):
         url = f"{self.host}/api/v1/qm/ladder/{ladder}/stats/{tier}"
         return self.get_call(url)
 
@@ -28,7 +30,11 @@ class CnCNetApiSvc(APIClient):
         return self.get_call(url)
 
     def fetch_errored_games(self, ladder):
-        url = f"{self.host}/api/v1/qm/ladder/{ladder}/errored/games"
+        url = f"{self.host}/api/v1/qm/ladder/{ladder}/erroredGames"
+        return self.get_call(url)
+
+    def fetch_recently_washed_games(self, ladder, hours):
+        url = f"{self.host}/api/v1/qm/ladder/{ladder}/{hours}/recentlyWashedGames"
         return self.get_call(url)
 
     def get_call(self, url):

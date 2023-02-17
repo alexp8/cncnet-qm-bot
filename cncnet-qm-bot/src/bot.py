@@ -22,6 +22,7 @@ global burg
 
 QM_BOT_CHANNEL_NAME = "qm-bot"
 BURG_ID = 123726717067067393  # Burg#8410 - User ID
+YR_DISCORD_QM_BOT_ID = 1039026321826787338  # Yuri's Revenge.qm-bot
 
 # Discord server IDs
 BLITZ_DISCORD_ID = 818265922615377971
@@ -32,9 +33,7 @@ CNCNET_DISCORD_QM_BOT_ID = 1039608594057924609  # CnCNet.qm-bot
 
 BLITZ_DISCORD_QM_BOT_ID = 1040396984164548729  # RA2 World Series.qm-bot
 BLITZ_DISCORD_WASH_TIME_ID = 1059638045109932042  # RA2 World Series.wash-time
-
-YR_DISCORD_QM_BOT_ID = 1039026321826787338  # Yuri's Revenge.qm-bot
-YR_BOT_CHANNEL_LOGS_ID = 852300478691672146  # Yuri's Revenge.cncnet-bot-logs
+YR_BOT_CHANNEL_LOGS_ID = 1075605794084638840  # Yuri's Revenge.cncnet-bot-logs
 
 
 @bot.event
@@ -58,9 +57,9 @@ async def on_ready():
 
     await purge_bot_channel()  # Delete messages in bot-channel
     fetch_active_qms.start()
-    # fetch_errored_games.start()
-    # update_qm_bot_channel_name.start()
-    # update_qm_roles.start()
+    fetch_recent_washed_games.start()
+    update_qm_bot_channel_name.start()
+    update_qm_roles.start()
 
     global burg
     burg = bot.get_user(123726717067067393)
@@ -166,8 +165,7 @@ async def fetch_active_qms():
         if not qm_bot_channel:
             continue
 
-
-
+        whole_message = ""
         # Loop through each ladder and get the results
         # Display active games in all ladders
         for ladder_abbrev in ladder_abbrev_arr:
@@ -176,7 +174,6 @@ async def fetch_active_qms():
             if not current_matches_json:
                 continue
 
-            whole_message = ""
             tier = 1
             for division, games in current_matches_json[ladder_abbrev].items():
                 qms_arr = []
@@ -192,7 +189,7 @@ async def fetch_active_qms():
                     qms_arr.append(games.strip())
 
                 # Get players in queue
-                stats_json = cnc_api_client.fetch_stats(ladder_abbrev, tier)
+                stats_json = cnc_api_client.fetch_stats_tier(ladder_abbrev, tier)
                 if not stats_json:
                     continue
                 tier += 1
@@ -210,24 +207,21 @@ async def fetch_active_qms():
 
                 whole_message += message
 
-            if whole_message:
-                try:
-                    await qm_bot_channel.send(whole_message, delete_after=56)
-                except HTTPException as he:
-                    msg = f"Failed to send message: '{whole_message}', exception '{he}'"
-                    print(msg)
-                    await burg.send(msg)
-                    return
-                except Forbidden as f:
-                    msg = f"Failed to send message due to forbidden error: '{whole_message}', exception '{f}'"
-                    print(msg)
-                    await burg.send(msg)
-                    return
-                except DiscordServerError as de:
-                    msg = f"Failed to send message due to DiscordServerError:  '{whole_message}', exception '{de}'"
-                    print(msg)
-                    await burg.send(msg)
-                    return
+        if whole_message:
+            try:
+                await qm_bot_channel.send(whole_message, delete_after=56)
+            except HTTPException as he:
+                msg = f"Failed to send message: '{whole_message}', exception '{he}'"
+                print(msg)
+                return
+            except Forbidden as f:
+                msg = f"Failed to send message due to forbidden error: '{whole_message}', exception '{f}'"
+                print(msg)
+                return
+            except DiscordServerError as de:
+                msg = f"Failed to send message due to DiscordServerError:  '{whole_message}', exception '{de}'"
+                print(msg)
+                return
 
 
 @bot.command()
@@ -257,6 +251,33 @@ async def update_qm_roles():
     await remove_qm_roles()  # remove discord members QM roles
 
     await assign_qm_role()  # assign discord members QM roles
+
+
+@tasks.loop(hours=8)
+async def fetch_recent_washed_games():
+    print("Fetching recently washed games")
+    guilds = bot.guilds
+
+    for server in guilds:
+        if server.id == YR_DISCORD_ID:  # YR discord
+            channel = bot.get_channel(YR_BOT_CHANNEL_LOGS_ID)  # YR cncnet-bot-logs
+            arr = ["ra2", "yr"]
+        elif server.id == BLITZ_DISCORD_ID:  # Blitz discord
+            arr = ["blitz"]
+            channel = bot.get_channel(BLITZ_DISCORD_WASH_TIME_ID)  # Blitz wash-time
+        else:
+            continue
+
+        hours = 8
+        for ladder_abbreviation in arr:
+            data = cnc_api_client.fetch_recently_washed_games(ladder_abbreviation, hours)
+
+            count = data["count"]
+            url = data["url"]
+
+            if count > 0:
+                await channel.send(f"{count} **{ladder_abbreviation}** games have been automatically washed in the last {hours} hours"
+                                   f".\n{url}")
 
 
 @tasks.loop(hours=8)
@@ -340,6 +361,7 @@ async def assign_qm_role():
         # Fetch QM player ranks
         rankings_json = cnc_api_client.fetch_rankings()
         if not rankings_json:
+            print("No ranking results found, exiting assign_qm_role().")
             return
 
         ladder_abbrev_arr = ["RA2", "YR"]
