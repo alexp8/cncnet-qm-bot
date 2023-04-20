@@ -93,8 +93,8 @@ async def maps(ctx, arg=""):
         await ctx.send(f"Error: No maps found in ladder': {arg}'")
         return
 
-    maps_string = '\n'.join(maps_arr)
-    message = f"** {arg} ** maps:\n```\n{maps_string}\n```"
+    maps_string = '\n -'.join(maps_arr)
+    message = f"{len(maps_arr)} **{arg}** maps:\n```\n{maps_string}\n```"
     await ctx.send(message)
 
 
@@ -186,7 +186,9 @@ async def fetch_active_qms():
                     title = ladder_abbrev.upper()
 
                 if games:
-                    qms_arr.append(games.strip())
+                    for game in games:
+                        print(game)
+                        qms_arr.append(game.strip())
 
                 # Get players in queue
                 stats_json = cnc_api_client.fetch_stats_tier(ladder_abbrev, tier)
