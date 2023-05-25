@@ -20,7 +20,7 @@ global cnc_api_client
 global ladders
 global burg
 
-QM_BOT_CHANNEL_NAME = "qm-bot"
+QM_BOT_CHANNEL_NAME = "ladder-bot"
 BURG_ID = 123726717067067393  # Burg#8410 - User ID
 YR_DISCORD_QM_BOT_ID = 1039026321826787338  # Yuri's Revenge.qm-bot
 
@@ -60,6 +60,7 @@ async def on_ready():
     fetch_recent_washed_games.start()
     update_qm_bot_channel_name.start()
     update_qm_roles.start()
+    # await fetch_active_qms()
 
     global burg
     burg = bot.get_user(123726717067067393)
@@ -127,7 +128,7 @@ async def update_qm_bot_channel_name():
             continue
 
         num_players = 0
-        new_channel_name = "qm-bot"
+        new_channel_name = "ladder-bot"
         for ladder_abbrev in ladder_abbrev_arr:
             stats_json = cnc_api_client.fetch_stats(ladder_abbrev)
             if not stats_json:
@@ -136,7 +137,7 @@ async def update_qm_bot_channel_name():
             queued_players = stats_json['queuedPlayers']
             active_matches = stats_json['activeMatches']
             num_players = num_players + queued_players + active_matches
-            new_channel_name = "qm-bot-" + str(num_players)
+            new_channel_name = "ladder-bot-" + str(num_players)
 
         await qm_bot_channel.edit(name=new_channel_name)
 
@@ -156,7 +157,7 @@ async def fetch_active_qms():
             ladder_abbrev_arr = ["ra"]
             qm_bot_channel = bot.get_channel(CNCNET_DISCORD_QM_BOT_ID)
         elif server.id == 252268956033875970:  # YR discord
-            ladder_abbrev_arr = ["ra2", "yr"]
+            ladder_abbrev_arr = ["ra2-cl", "ra2", "yr"]
             qm_bot_channel = bot.get_channel(YR_DISCORD_QM_BOT_ID)
         elif server.id == BLITZ_DISCORD_ID:  # RA2CashGames discord
             ladder_abbrev_arr = ["blitz"]
@@ -165,63 +166,54 @@ async def fetch_active_qms():
         if not qm_bot_channel:
             continue
 
-        whole_message = ""
+        server_message = ""
         # Loop through each ladder and get the results
         # Display active games in all ladders
         for ladder_abbrev in ladder_abbrev_arr:
+
+            title = ladder_abbrev.upper()
+            if ladder_abbrev == 'ra2-cl':
+                title = 'Red Alert 2 Clan'
+
             current_matches_json = cnc_api_client.fetch_current_matches(ladder_abbrev)
 
-            if not current_matches_json:
+            qms_arr = []
+            if current_matches_json:
+                for game in current_matches_json[ladder_abbrev]:
+                    qms_arr.append(game.strip())
+
+            # Get players in queue
+            stats_json = cnc_api_client.fetch_stats(ladder_abbrev)
+            if not stats_json:
                 continue
 
-            tier = 1
-            for division, games in current_matches_json[ladder_abbrev].items():
-                qms_arr = []
-                if division == "Contenders Players League" and server.id != BLITZ_DISCORD_ID:
-                    continue
+            in_queue = stats_json['queuedPlayers']
+            total_in_qm = in_queue + (len(qms_arr) * 2)
+            current_message = str(total_in_qm) + " player(s) in **" + title \
+                      + "** Ladder:\n- " + str(in_queue) + " player(s) in queue"
 
-                if server.id == BLITZ_DISCORD_ID:  # Only blitz has divisions
-                    title = ladder_abbrev.upper() + " - " + division.upper()
-                else:
-                    title = ladder_abbrev.upper()
+            if qms_arr:
+                current_message += "\n- " + str(len(qms_arr)) + " active matches:\n```\n- " \
+                           + '\n- '.join(qms_arr) + "\n```\n"
+            else:
+                current_message += "\n- 0 active matches.\n\n"
 
-                if games:
-                    for game in games:
-                        print(game)
-                        qms_arr.append(game.strip())
+            server_message += current_message
 
-                # Get players in queue
-                stats_json = cnc_api_client.fetch_stats_tier(ladder_abbrev, tier)
-                if not stats_json:
-                    continue
-                tier += 1
-
-                in_queue = stats_json['queuedPlayers']
-                total_in_qm = in_queue + (len(qms_arr) * 2)
-                message = str(total_in_qm) + " player(s) in **" + title \
-                          + "** QM:\n- " + str(in_queue) + " player(s) in queue"
-
-                if qms_arr:
-                    message += "\n- " + str(len(qms_arr)) + " active matches:\n```\n- " \
-                               + '\n- '.join(qms_arr) + "\n```\n"
-                else:
-                    message += "\n- 0 active matches.\n\n"
-
-                whole_message += message
-
-        if whole_message:
+        if server_message:  # Send one message per server
             try:
-                await qm_bot_channel.send(whole_message, delete_after=56)
+                await qm_bot_channel.send(server_message, delete_after=56)
+                # print(server_message)
             except HTTPException as he:
-                msg = f"Failed to send message: '{whole_message}', exception '{he}'"
+                msg = f"Failed to send message: '{server_message}', exception '{he}'"
                 print(msg)
                 return
             except Forbidden as f:
-                msg = f"Failed to send message due to forbidden error: '{whole_message}', exception '{f}'"
+                msg = f"Failed to send message due to forbidden error: '{server_message}', exception '{f}'"
                 print(msg)
                 return
             except DiscordServerError as de:
-                msg = f"Failed to send message due to DiscordServerError:  '{whole_message}', exception '{de}'"
+                msg = f"Failed to send message due to DiscordServerError:  '{server_message}', exception '{de}'"
                 print(msg)
                 return
 
