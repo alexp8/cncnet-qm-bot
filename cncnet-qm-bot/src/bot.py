@@ -18,10 +18,8 @@ intents = discord.Intents(messages=True, guilds=True, message_content=True, guil
 bot = commands.Bot(command_prefix='!', intents=intents)
 global cnc_api_client
 global ladders
-global burg
 
 QM_BOT_CHANNEL_NAME = "ladder-bot"
-BURG_ID = 123726717067067393  # Burg#8410 - User ID
 YR_DISCORD_QM_BOT_ID = 1039026321826787338  # Yuri's Revenge.qm-bot
 
 # Discord server IDs
@@ -57,13 +55,11 @@ async def on_ready():
 
     await purge_bot_channel()  # Delete messages in bot-channel
     fetch_active_qms.start()
-    fetch_recent_washed_games.start()
-    update_qm_bot_channel_name.start()
-    update_qm_roles.start()
-    # await fetch_active_qms()
+    # fetch_recent_washed_games.start()
+    # update_qm_bot_channel_name.start()
+    # update_qm_roles.start()
 
-    global burg
-    burg = bot.get_user(123726717067067393)
+    # await fetch_active_qms() # uncomment for debugging
 
 
 @bot.command()
@@ -124,7 +120,6 @@ async def update_qm_bot_channel_name():
 
         if not qm_bot_channel:
             print(f"No qm-bot channel found in server '{server.name}'")
-            await burg.send(f"No qm-bot channel found in server '{server.name}'")
             continue
 
         num_players = 0
@@ -140,6 +135,25 @@ async def update_qm_bot_channel_name():
             new_channel_name = "ladder-bot-" + str(num_players)
 
         await qm_bot_channel.edit(name=new_channel_name)
+
+
+def clans_in_queue_msg(clans_in_queue):
+    msg = ""
+
+    if clans_in_queue:
+        clan_count = 1
+        msg += " "
+
+        for clan_id, num_clans in clans_in_queue.items():
+            msg += "Clan" + str(clan_count) + " (" + str(num_clans) + " players)"
+            clan_count += 1
+
+            if clan_count < len(clans_in_queue) + 1:
+                msg += ", "
+            else:
+                msg += "."
+
+    return msg
 
 
 @tasks.loop(minutes=1)
@@ -188,13 +202,23 @@ async def fetch_active_qms():
                 continue
 
             in_queue = stats_json['queuedPlayers']
-            total_in_qm = in_queue + (len(qms_arr) * 2)
-            current_message = str(total_in_qm) + " player(s) in **" + title \
-                      + "** Ladder:\n- " + str(in_queue) + " player(s) in queue"
+
+            if '-cl' in ladder_abbrev:
+                clans_in_queue = stats_json['clans']
+                total_in_qm = in_queue + (len(qms_arr) * 4)
+                current_message = str(total_in_qm) + " player(s) in **" + title \
+                                  + "** Ladder:\n- " \
+                                  + str(in_queue) \
+                                  + " clan(s) in queue." + clans_in_queue_msg(clans_in_queue)
+
+            else:
+                total_in_qm = in_queue + (len(qms_arr) * 2)
+                current_message = str(total_in_qm) + " player(s) in **" + title \
+                                  + "** Ladder:\n- " + str(in_queue) + " player(s) in queue"
 
             if qms_arr:
                 current_message += "\n- " + str(len(qms_arr)) + " active matches:\n```\n- " \
-                           + '\n- '.join(qms_arr) + "\n```\n"
+                                   + '\n- '.join(qms_arr) + "\n```\n"
             else:
                 current_message += "\n- 0 active matches.\n\n"
 
@@ -255,7 +279,7 @@ async def fetch_recent_washed_games():
     for server in guilds:
         if server.id == YR_DISCORD_ID:  # YR discord
             channel = bot.get_channel(YR_BOT_CHANNEL_LOGS_ID)  # YR cncnet-bot-logs
-            arr = ["ra2", "yr"]
+            arr = ["ra2", "yr", "ra2-cl"]
         elif server.id == BLITZ_DISCORD_ID:  # Blitz discord
             arr = ["blitz"]
             channel = bot.get_channel(BLITZ_DISCORD_WASH_TIME_ID)  # Blitz wash-time
@@ -270,8 +294,9 @@ async def fetch_recent_washed_games():
             url = data["url"]
 
             if count > 0:
-                await channel.send(f"{count} **{ladder_abbreviation}** games have been automatically washed in the last {hours} hours"
-                                   f".\n{url}")
+                await channel.send(
+                    f"{count} **{ladder_abbreviation}** games have been automatically washed in the last {hours} hours"
+                    f".\n{url}")
 
 
 @tasks.loop(hours=8)
@@ -281,7 +306,7 @@ async def fetch_errored_games():
     for server in guilds:
         if server.id == YR_DISCORD_ID:  # YR discord
             channel = bot.get_channel(YR_BOT_CHANNEL_LOGS_ID)  # YR cncnet-bot-logs
-            arr = ["ra2", "yr"]
+            arr = ["ra2", "yr", "ra2-cl"]
         elif server.id == BLITZ_DISCORD_ID:  # Blitz discord
             arr = ["blitz"]
             channel = bot.get_channel(BLITZ_DISCORD_WASH_TIME_ID)  # Blitz wash-time
@@ -311,33 +336,14 @@ async def remove_qm_roles():
         for member in server.members:
             for role in member.roles:
 
-                if role.name.lower() == 'RA2 QM Rank 1'.lower():
+                if 'champion' in role.name.lower():  # Don't remove QM Champion roles
+                    continue
+
+                if 'ra2 qm' in role.name.lower():
                     await member.remove_roles(role)
-                elif role.name.lower() == 'YR QM Rank 1'.lower():
+                elif 'yr qm' in role.name.lower():
                     await member.remove_roles(role)
-                elif role.name.lower() == 'RA2 QM Top 3'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'YR QM Top 3'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'RA2 QM TOP 5'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'YR QM TOP 5'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'RA2 QM TOP 10'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'YR QM TOP 10'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'RA2 QM TOP 10'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'YR QM TOP 10'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'RA2 QM TOP 25'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'YR QM TOP 25'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'RA2 QM TOP 50'.lower():
-                    await member.remove_roles(role)
-                elif role.name.lower() == 'YR QM TOP 50'.lower():
+                elif 'ra2 qm' in role.name.lower():
                     await member.remove_roles(role)
 
     print("Finished removing QM roles")
