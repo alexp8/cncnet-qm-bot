@@ -273,6 +273,9 @@ def is_in_bot_channel(ctx):
 
 @tasks.loop(hours=8)
 async def update_qm_roles():
+
+    await purge_bot_channel() # purge bot channel periodically in case a message wasn't deleted
+
     await remove_qm_roles()  # remove discord members QM roles
 
     await assign_qm_role()  # assign discord members QM roles
