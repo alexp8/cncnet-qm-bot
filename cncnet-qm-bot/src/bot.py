@@ -75,23 +75,23 @@ async def maps(ctx, arg=""):
         await ctx.send(f"No ladder provided, select a valid ladder from `[{ladders_string}]`, like `!maps ra2`")
         return
 
-    if arg not in ladders:
+    if arg.lower() not in ladders:
         ladders_string = ', '.join(ladders)
-        await ctx.send(f"{arg} is not a valid ladder from `{ladders_string}`")
+        await ctx.send(f"{arg.lower()} is not a valid ladder from `{ladders_string}`")
         return
 
-    maps_json = cnc_api_client.fetch_maps(arg)
+    maps_json = cnc_api_client.fetch_maps(arg.lower())
 
     maps_arr = []
     for item in maps_json:
         maps_arr.append(item["description"])
 
     if not maps_arr:
-        await ctx.send(f"Error: No maps found in ladder': {arg}'")
+        await ctx.send(f"Error: No maps found in ladder': {arg.lower()}'")
         return
 
     maps_string = '\n -'.join(maps_arr)
-    message = f"{len(maps_arr)} **{arg}** maps:\n```\n{maps_string}\n```"
+    message = f"{len(maps_arr)} **{arg.lower()}** maps:\n```\n{maps_string}\n```"
     await ctx.send(message)
 
 
@@ -109,10 +109,10 @@ async def update_qm_bot_channel_name():
             ladder_abbrev_arr = ["ra"]
             qm_bot_channel = bot.get_channel(CNCNET_DISCORD_QM_BOT_ID)
         elif server.id == 252268956033875970:  # YR discord
-            ladder_abbrev_arr = ["ra2", "ra2-beta" "yr", "blitz", "ra2-cl"]
+            ladder_abbrev_arr = ["ra2", "ra2-new-maps", "yr", "blitz", "ra2-cl"]
             qm_bot_channel = bot.get_channel(YR_DISCORD_QM_BOT_ID)
         elif server.id == BLITZ_DISCORD_ID:  # RA2CashGames discord
-            ladder_abbrev_arr = ["blitz", "ra2", "yr", "ra2-beta", "ra2-cl"]
+            ladder_abbrev_arr = ["blitz", "ra2", "yr", "ra2-new-maps", "ra2-cl"]
             qm_bot_channel = bot.get_channel(BLITZ_DISCORD_QM_BOT_ID)
 
         if not ladder_abbrev_arr:
@@ -173,10 +173,10 @@ async def fetch_active_qms():
             ladder_abbrev_arr = ["ra"]
             qm_bot_channel = bot.get_channel(CNCNET_DISCORD_QM_BOT_ID)
         elif server.id == 252268956033875970:  # YR discord
-            ladder_abbrev_arr = ["ra2-cl", "ra2-beta", "ra2", "yr", "blitz"]
+            ladder_abbrev_arr = ["ra2-cl", "ra2-new-maps", "ra2", "yr", "blitz"]
             qm_bot_channel = bot.get_channel(YR_DISCORD_QM_BOT_ID)
         elif server.id == BLITZ_DISCORD_ID:  # RA2CashGames discord
-            ladder_abbrev_arr = ["blitz", "ra2-beta", "ra2-cl", "ra2", "yr"]
+            ladder_abbrev_arr = ["blitz", "ra2-new-maps", "ra2-cl", "ra2", "yr"]
             qm_bot_channel = bot.get_channel(BLITZ_DISCORD_QM_BOT_ID)
 
         if not qm_bot_channel:
@@ -289,7 +289,7 @@ async def fetch_recent_washed_games():
     for server in guilds:
         if server.id == YR_DISCORD_ID:  # YR discord
             channel = bot.get_channel(YR_BOT_CHANNEL_LOGS_ID)  # YR cncnet-bot-logs
-            arr = ["ra2", "ra2-beta", "yr", "ra2-cl"]
+            arr = ["ra2", "ra2-new-maps", "yr", "ra2-cl"]
         elif server.id == BLITZ_DISCORD_ID:  # Blitz discord
             arr = ["blitz"]
             channel = bot.get_channel(BLITZ_DISCORD_WASH_TIME_ID)  # Blitz wash-time
@@ -316,7 +316,7 @@ async def fetch_errored_games():
     for server in guilds:
         if server.id == YR_DISCORD_ID:  # YR discord
             channel = bot.get_channel(YR_BOT_CHANNEL_LOGS_ID)  # YR cncnet-bot-logs
-            arr = ["ra2", "ra2-beta", "yr", "ra2-cl"]
+            arr = ["ra2", "ra2-new-maps", "yr", "ra2-cl"]
         elif server.id == BLITZ_DISCORD_ID:  # Blitz discord
             arr = ["blitz"]
             channel = bot.get_channel(BLITZ_DISCORD_WASH_TIME_ID)  # Blitz wash-time
