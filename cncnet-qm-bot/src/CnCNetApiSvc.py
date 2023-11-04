@@ -40,7 +40,7 @@ class CnCNetApiSvc(APIClient):
     def get_call(self, url):
         try:
             return self.get(url)
-        except APIRequestError or Exception as e:
+        except RuntimeError or TimeoutError or APIRequestError or Exception as e:
             print(f"Status code: '{e.status_code}', message: '{e.message}', Info: '{e.info}', Cause: '{e.__cause__}'")
             return None
 

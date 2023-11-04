@@ -84,14 +84,17 @@ async def maps(ctx, arg=""):
 
     maps_arr = []
     for item in maps_json:
-        maps_arr.append(item["description"])
+        maps_arr.append("(" + str(item["map_tier"]) + ") " + item["description"])
 
     if not maps_arr:
-        await ctx.send(f"Error: No maps found in ladder': {arg.lower()}'")
+        await ctx.send(f"Error: No maps found in ladder': {arg.upper()}'")
         return
 
-    maps_string = '\n -'.join(maps_arr)
-    message = f"{len(maps_arr)} **{arg.lower()}** maps:\n```\n{maps_string}\n```"
+    maps_string = "\n" + "\n".join(maps_arr)
+    message = f"{len(maps_arr)} **{arg.upper()}** maps:" \
+              f"\n```" \
+              f"{maps_string}" \
+              f"\n```"
     await ctx.send(message)
 
 
