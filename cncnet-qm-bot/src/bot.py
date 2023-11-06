@@ -47,6 +47,11 @@ async def on_ready():
     ladders = []
     ladders_json = cnc_api_client.fetch_ladders()
     for item in ladders_json:
+
+        if item is None:
+            print("No ladders found... exiting. " + ladders_json)
+            exit(1)
+
         if item["private"] == 0:
             ladders.append(item["abbreviation"])
 
@@ -67,7 +72,7 @@ async def maps(ctx, arg=""):
     print("Fetching maps for ladder '{arg}'")
 
     if not ladders:
-        await ctx.send("Error: No ladders available")
+        await ctx.send("!maps - Error: No ladders available")
         return
 
     if not arg:
@@ -101,7 +106,7 @@ async def maps(ctx, arg=""):
 @tasks.loop(minutes=10)
 async def update_qm_bot_channel_name():
     if not ladders:
-        print("Error: No ladders available")
+        print("update_qm_bot_channel_name() - Error: No ladders available")
         return
 
     guilds = bot.guilds
@@ -162,7 +167,7 @@ def clans_in_queue_msg(clans_in_queue):
 @tasks.loop(minutes=1)
 async def fetch_active_qms():
     if not ladders:
-        print("Error: No ladders available")
+        print("fetch_active_qms() - Error: No ladders available")
         return
 
     current_matches_json = cnc_api_client.fetch_current_matches("all")
